@@ -1,4 +1,4 @@
-import discord, os, logging, json
+import discord, os, logging, json, re
 from logging.handlers import RotatingFileHandler
 from dotenv import load_dotenv
 from discord import app_commands
@@ -20,7 +20,7 @@ handlers.setFormatter(formatter)
 role_msg_id=''
 rec_emoji = ["1️⃣", "2️⃣", "3️⃣", "4️⃣", "5️⃣", "6️⃣", "7️⃣", "8️⃣", "9️⃣", "🔟"]
 rec_roles = []
-sudo_id = [421904193276870657, 1013087173911785472, 564334078640259082]
+sudo_id = [421904193276870657, 1013087173911785472, 564334078640259082, 582117471725682708, 618099320822169640]
 jsonData = "./data.json"
 
 class aclinet(discord.Client):
@@ -40,35 +40,64 @@ class aclinet(discord.Client):
 client = aclinet()
 tree = app_commands.CommandTree(client)
 
-@tree.command(name = "say", description = "機器人說()" )
-async def self(interaction: discord.Integration, echo:str, where:int=0):
-    if where == 0:
-        channel = client.get_channel(interaction.channel.id)
-    else:
+@tree.command(name = "say", description = "機器人說" )
+async def self(interaction: discord.Integration, echo:str, where:str="default"):
+    if interaction.user.id in sudo_id:
+        if where == "default":
+            channel = client.get_channel(interaction.channel.id)
+        else:
+            try:
+                channel = client.get_channel(int(where))
+            except:
+                await interaction.response.send_message("您輸入的channel ID好像有誤, 請檢查channel ID", ephemeral=True, delete_after=10)
+                logging.debug(f"channel ID 設定錯誤 錯誤ID為: {where}")
+        
         try:
-            channel = client.get_channel(int(where))
-        except:
-            await interaction.response.send_message("您輸入的channel ID好像有誤, 請檢查channel ID", ephemeral=True, delete_after=10)
-            logging.debug(f"channel ID 設定錯誤 錯誤ID為: {where}")
-    
-    try:
-        eb = discord.Embed (description=f"\u200b\n{echo}\u200b\n\u200b\n", color=discord.Color(0xFFFFFF))
-        await channel.send(embed=eb)
-        await interaction.response.send_message(echo, ephemeral=True, delete_after=10)
-        logging.info(f"來自 '{interaction.user}' 指令: 說 內容: {echo} 到: {where}")
-    except Exception as e:
-        await interaction.response.send_message(echo, ephemeral=True)
-        logging.error(f"失敗。來自 '{interaction.user}' 指令: 說, 錯誤訊息: {e}")
+            eb = discord.Embed (description=f"\u200b\n　{echo}　\u200b\n\u200b\n", color=discord.Color(0xFFFFFF))
+            await channel.send(embed=eb)
+            await interaction.response.send_message(echo, ephemeral=True, delete_after=10)
+            logging.info(f"來自 '{interaction.user}' 指令: 說 內容: {echo} 到: {where}")
+        except Exception as e:
+            await interaction.response.send_message(echo, ephemeral=True)
+            logging.error(f"失敗。來自 '{interaction.user}' 指令: 說, 錯誤訊息: {e}")
+    else:
+        await interaction.response.send_message("你目前尚未有權限", ephemeral=True, delete_after=5)
+        logging.info(f"失敗。來自 '{interaction.user}' 指令: say, 沒有權限")
+
+@tree.command(name = "sendimg", description = "輸入圖片的url" )
+async def self(interaction: discord.Integration, url:str, where:str="default"):
+    if interaction.user.id in sudo_id:
+        if where == "default":
+            channel = client.get_channel(interaction.channel.id)
+        else:
+            try:
+                channel = client.get_channel(int(where))
+            except:
+                await interaction.response.send_message("您輸入的channel ID好像有誤, 請檢查channel ID", ephemeral=True, delete_after=10)
+                logging.debug(f"channel ID 設定錯誤 錯誤ID為: {where}")
+        
+        try:
+            eb = discord.Embed()
+            eb.set_image(url=url)
+            await channel.send(embed=eb)
+            await interaction.response.send_message(url, ephemeral=True, delete_after=10)
+            logging.info(f"來自 '{interaction.user}' 指令: 說 內容: {url} 到: {where}")
+        except Exception as e:
+            await interaction.response.send_message(url, ephemeral=True)
+            logging.error(f"失敗。來自 '{interaction.user}' 指令: 說, 錯誤訊息: {e}")
+    else:
+        await interaction.response.send_message("你目前尚未有權限", ephemeral=True, delete_after=5)
+        logging.info(f"失敗。來自 '{interaction.user}' 指令: sendimg, 沒有權限")
 
 @tree.command(name = "addroles", description = "依照順序輸入你想要給的身分組(上限為10個)\nexample: @admin @guset(用空格分隔身分組)")
-async def self(interaction: discord.Integration, roles:str, title:str="自訂義title", where:int=0):
+async def self(interaction: discord.Integration, roles:str, title:str="自訂義title", where:str="default"):
     global role_msg_id, rec_emoji, rec_roles
     rec_roles = []
     temp = []
-    msg = f"\u200b\n‧　{title}\n\n"
+    msg = f"\u200b\n　‧{title}　\n\n"
     
     if interaction.user.id in sudo_id:
-        if where == 0:
+        if where == "default":
             channel = client.get_channel(interaction.channel.id)
         else:
             try:
@@ -77,9 +106,7 @@ async def self(interaction: discord.Integration, roles:str, title:str="自訂義
                 await interaction.response.send_message("您輸入的channel ID好像有誤, 請檢查channel ID", ephemeral=True, delete_after=10)
                 logging.debug(f"channel ID 設定錯誤 錯誤ID為: {where}")
 
-        total_roles = roles.split(" ")
-        for i in total_roles:
-            total_roles.remove("")
+        total_roles = re.findall(r"<@&.*?>", roles)
         total_roles_len = len(total_roles)
 
         for role, emoji in zip(total_roles, rec_emoji):
@@ -92,7 +119,7 @@ async def self(interaction: discord.Integration, roles:str, title:str="自訂義
             
             temp.append(role)
             temp.append(emoji)
-            msg += "‧　{}　".format(role)
+            msg += "　‧ {}　".format(role)
             rec_roles.append(temp)
             temp = []
         msg += "\u200b\n\u200b\n"
@@ -116,10 +143,45 @@ async def self(interaction: discord.Integration, roles:str, title:str="自訂義
         await interaction.response.send_message("你目前尚未有權限", ephemeral=True, delete_after=5)
         logging.info(f"失敗。來自 '{interaction.user}' 指令: addroles, 沒有權限")
 
-@tree.command(name = "ping", description = "就ping" )
+@tree.command(name = "ping", description = "就ping")
 async def self(interaction: discord.Integration):
-    await interaction.response.send_message(f'Pong! {round(client.latency * 1000, 2)}ms.')
-    logging.info(f"來自 '{interaction.user}' 指令: ping")
+    if interaction.user.id in sudo_id:
+        await interaction.response.send_message(f'Pong! {round(client.latency * 1000, 2)}ms.')
+        logging.info(f"來自 '{interaction.user}' 指令: ping")
+    else:
+        await interaction.response.send_message("你目前尚未有權限", ephemeral=True, delete_after=5)
+        logging.info(f"失敗。來自 '{interaction.user}' 指令: ping, 沒有權限")
+
+@tree.command(name = "help", description = "就help")
+async def self(interaction: discord.Integration):
+    if interaction.user.id in sudo_id:
+        msg = '`/addrules`\n\
+傳送一個embed 依照點擊的emoji增加身分組\n\
+roles 必填: 請依序填入身分組, 中間以空格分隔\n\
+title 選填: 如未輸入embed第一行會顯示 "自定義title"\n\
+where 選填: 輸入channel ID (僅限數字), 當where沒有填入值時, 則在哪裡使用slash command就send message到哪裡, 否則message會send到指定的channel\n\
+\n\
+`/say`\n\
+輸入想說的話, 機器人會幫你傳送到想要的頻道\n\
+echo 必填: 輸入想要說的話\n\
+where 選填: 輸入channel ID (僅限數字), 當where沒有填入值時, 則在哪裡使用slash command就send message到哪裡, 否則message會send到指定的channel\n\
+\n\
+`/ping`\n\
+顯示伺服器的連線延遲狀況\n\
+\n\
+`/sendimg`\n\
+傳送圖片(輸入url)\n\
+url 必填: 輸入圖片網址\n\
+where 選填: 輸入channel ID (僅限數字), 當where沒有填入值時, 則在哪裡使用slash command就send message到哪裡, 否則message會send到指定的channel\n\
+\n\
+`/help`\n\
+使用說明\
+'
+        await interaction.response.send_message(f'{msg}', ephemeral=True)
+        logging.info(f"來自 '{interaction.user}' 指令: ping")
+    else:
+        await interaction.response.send_message("你目前尚未有權限", ephemeral=True, delete_after=5)
+        logging.info(f"失敗。來自 '{interaction.user}' 指令: help, 沒有權限")
 
 @client.event
 async def on_raw_reaction_add(payload):
