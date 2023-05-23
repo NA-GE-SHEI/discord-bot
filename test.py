@@ -1,16 +1,25 @@
-import os, sqlite3
+import json
+jsonPath = r"./keyword.json"
 
-DB_path = r"./bot_alarm.db"
-conn = sqlite3.connect(DB_path)
-cursor = conn.cursor()
+def loadJson():
+    with open(jsonPath, 'r') as f:
+        data = json.load(f)
+        print(data["keyword"])
+    return data
 
-def check():
-    # if not os.path.isfile(DB_path):
-    a = cursor.execute("SELECT _index FROM alarm ORDER BY _index DESC limit 1")
-    for i in a:
-        if len(i[0]) == 0:
-            print("is space")
-        print(i)
-    conn.close()
+def writeJson(content):
+    data = loadJson()
+    for keyword in content:
+        data['keyword'].remove(keyword)
 
-check()
+    with open(jsonPath, 'w') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+
+# testdata = ['聽說']
+
+# writeJson(testdata)
+
+msg = "聽說, 聽說, 聽說, "
+
+print(msg[:-2])

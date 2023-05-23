@@ -1,12 +1,41 @@
-import sqlite3, time, asyncio, datetime, os
+import sqlite3, time, asyncio, datetime, os, json
 from datetime import datetime, timezone, timedelta
 from collections import namedtuple
 
 DB_path = r"./bot_alarm.db"
+jsonPath = r"./keyword.json"
 conn = sqlite3.connect(DB_path)
 cursor = conn.cursor()
 
+def loadJson():
+    with open(jsonPath, 'r') as f:
+        data = json.load(f)
+    return data
+
+def writeJson(content):
+    data = loadJson()
+    for keyword in content:
+        data['keyword'].append(keyword)
+
+    with open(jsonPath, 'w') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
+def removeJson(content):
+    data = loadJson()
+    try:
+        for keyword in content:
+            data['keyword'].remove(keyword)
+    except:
+        print("部分字詞沒有, 已刪除符合字詞")
+
+    with open(jsonPath, 'w') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
+
 def check():
+    if not os.path.isfile(jsonPath):
+        with open(jsonPath, "w") as f:
+            f.write(json.dumps({"keyword": []}, sort_keys=True, indent=4))
+
     conn.execute('''CREATE TABLE IF NOT EXISTS alarm
                 (`_index`    INTEGER,
                 `success`    TEXT,
@@ -26,6 +55,7 @@ def check():
                 `server_id`    INTEGER,
                 `d4`    INTEGER
                 );''')
+    
 
 def clock():
     class Date:

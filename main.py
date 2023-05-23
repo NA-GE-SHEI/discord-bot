@@ -1,3 +1,9 @@
+import os
+from discord.ext.commands.context import Context
+from dotenv import load_dotenv
+from discord.ext import commands
+import discord
+import asyncio
 ### repeat message ###
 #導入Discord.py
 import discord
@@ -5,6 +11,11 @@ from discord import app_commands
 import re, time, datetime, calendar
 import func
 #client 是我們與 Discord 連結的橋樑，intents 是我們要求的權限
+
+load_dotenv(r".env")
+TOKEN = os.getenv('DISCORD_TOKEN')
+sensitive_words = []
+
 class aclinet(discord.Client):
     def __init__(self):
         intents = discord.Intents.default()
@@ -18,6 +29,7 @@ class aclinet(discord.Client):
             await tree.sync()
             self.synced = True
             func.check()
+
             print('目前登入身份：', client.user)
         while True:
             content, name, where, who = await func.check_task()
@@ -31,6 +43,10 @@ class aclinet(discord.Client):
 client = aclinet()
 tree = app_commands.CommandTree(client)
 
+def updataSensitiveWords():
+    for word in func.loadJson()['keyword']:
+        sensitive_words.append(word)
+
 @tree.command(name = "say", description = "機器人說" )
 async def self(interaction: discord.Integration, echo:str, where:str="default"):
     if where == "default":
@@ -43,7 +59,7 @@ async def self(interaction: discord.Integration, echo:str, where:str="default"):
     
     try:
         await channel.send(echo)
-        await interaction.response.send_message(echo, ephemeral=True, delete_after=3)
+        await interaction.response.send_message(echo, ephemeral=True, delete_after=3)    # ephemeral=True 只顯示給自己 delete_after=3 為3秒後刪除 有需要可以自行更改
     except Exception as e:
         await interaction.response.send_message(echo, ephemeral=True)
 
@@ -99,20 +115,72 @@ async def self(interaction: discord.Integration, mm:int, dd:int, time:str, desc:
         print(e)
         await interaction.response.send_message(f"無此日期{mm}/{dd}!")
 
-@client.event
-#當有訊息時
-async def on_message(message):
-    #排除自己的訊息，避免陷入無限循環
-    if message.author == client.user:
-        return
-    #如果以「說」開頭
-    if message.content.startswith('說'):
-      #分割訊息成兩份
-      tmp = message.content.split(" ",2)
-      #如果分割後串列長度只有1
-      if len(tmp) == 1:
-        await message.channel.send("repeat message")
-      else:
-        await message.channel.send(tmp[1])
+@tree.command(name = "hello", description = "Say hello!")
+async def self(interaction: discord.Integration):
+    channel = client.get_channel(interaction.channel.id)
+    await channel.send(f"Hello {interaction.user}~")
 
-client.run("")
+@tree.command(name = "addkey", description = "增加移除敏感字")
+async def self(interaction: discord.Integration, content:str):
+    keyword = list(filter(None, content.split(",")))
+    print(keyword)
+    func.writeJson(keyword)
+    updataSensitiveWords()
+    await interaction.response.send_message("OK")
+
+@tree.command(name = "rmkey", description = "移除以加敏感字")
+async def self(interaction: discord.Integration, content:str):
+    keyword = list(filter(None, content.split(",")))
+    func.removeJson(keyword)
+    updataSensitiveWords()
+    await interaction.response.send_message("OK")
+
+@tree.command(name = "keyword", description = "顯示所有敏感字")
+async def self(interaction: discord.Integration):
+    msg = ""
+    data = func.loadJson()
+    for keyword in data["keyword"]:
+        msg += f"{keyword}, "
+    print(msg)
+    await interaction.response.send_message(msg[:-2])
+
+@tree.command(name = "nick", description = "變更暱稱")
+async def hello(interaction: discord.Integration, member: discord.Member, nick:str):
+    try:
+        await member.edit(nick=nick)
+        await interaction.response.send_message(f"已更改為{nick}")
+    except Exception as e:
+        print(e)
+        await interaction.response.send_message(f"失敗, 請確認權限!", ephemeral=True, delete_after=5)
+
+
+@client.event
+async def on_message(message):
+    try:
+        if message.author == client.user:
+            return
+        for word in sensitive_words:
+            if word in message.content:
+                await message.delete()
+                await message.channel.send("請勿提及敏感字, 謝謝!")
+        else:
+            #如果以「說」開頭
+            if message.content.startswith('說'):
+                #分割訊息成兩份
+                tmp = message.content.split(" ",2)
+                #如果分割後串列長度只有1
+                if len(tmp) == 1:
+                    await message.channel.send("repeat message")
+                else:
+                    await message.channel.send(tmp[1])
+            print(f'Message from {message.author}: {message.content}')
+    except Exception as e:
+        print(e)
+
+def main():
+    # bot = asyncio.run(create_bot())
+    # bot.run(TOKEN)
+    client.run(TOKEN)
+
+if __name__ == "__main__":
+    main()
