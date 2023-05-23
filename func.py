@@ -8,7 +8,7 @@ conn = sqlite3.connect(DB_path)
 cursor = conn.cursor()
 
 def loadJson():
-    with open(jsonPath, 'r') as f:
+    with open(jsonPath, 'r', encoding="utf-8") as f:
         data = json.load(f)
     return data
 
@@ -17,7 +17,7 @@ def writeJson(content):
     for keyword in content:
         data['keyword'].append(keyword)
 
-    with open(jsonPath, 'w') as f:
+    with open(jsonPath, 'w', encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def removeJson(content):
@@ -28,12 +28,12 @@ def removeJson(content):
     except:
         print("部分字詞沒有, 已刪除符合字詞")
 
-    with open(jsonPath, 'w') as f:
+    with open(jsonPath, 'w', encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
 def check():
     if not os.path.isfile(jsonPath):
-        with open(jsonPath, "w") as f:
+        with open(jsonPath, "w", encoding="utf-8") as f:
             f.write(json.dumps({"keyword": []}, sort_keys=True, indent=4))
 
     conn.execute('''CREATE TABLE IF NOT EXISTS alarm
